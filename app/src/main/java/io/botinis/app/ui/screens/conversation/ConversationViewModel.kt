@@ -84,8 +84,16 @@ class ConversationViewModel @Inject constructor(
     }
 
     fun startRecording() {
+        // Check API key before recording
+        if (currentApiKey.isBlank()) {
+            _uiState.update {
+                it.copy(error = "API key not configured. Please set it in Settings first.")
+            }
+            return
+        }
+
         try {
-            val file = File(context.cacheDir, "recording_${System.currentTimeMillis()}.aac")
+            val file = File(context.cacheDir, "recording_${System.currentTimeMillis()}.m4a")
             tempAudioFile = file
 
             mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -95,10 +103,10 @@ class ConversationViewModel @Inject constructor(
                 MediaRecorder()
             }.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setAudioEncodingBitRate(128000)
-                setAudioSamplingRate(44100)
+                setAudioSamplingRate(16000)
                 setOutputFile(file.absolutePath)
                 prepare()
                 start()
@@ -229,7 +237,7 @@ class ConversationViewModel @Inject constructor(
 
     private suspend fun transcribeAudio(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val requestFile = audioFile.asRequestBody("audio/aac".toMediaType())
+            val requestFile = audioFile.asRequestBody("audio/m4a".toMediaType())
             val audioPart = MultipartBody.Part.createFormData("file", audioFile.name, requestFile)
             val model = "whisper-large-v3-turbo".toRequestBody("text/plain".toMediaType())
 
@@ -242,7 +250,8 @@ class ConversationViewModel @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.text)
             } else {
-                Result.failure(Exception("Transcription failed: ${response.message()} (${response.code()})"))
+                val errorBody = response.errorBody()?.string() ?: response.message()
+                Result.failure(Exception("Transcription failed: ${response.code()} - $errorBody"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -311,7 +320,8 @@ If no errors, return empty corrections array."""
             if (response.isSuccessful && response.body()?.choices?.isNotEmpty() == true) {
                 Result.success(response.body()!!.choices[0].message.content)
             } else {
-                Result.failure(Exception("Chat failed: ${response.message()} (${response.code()})"))
+                val errorBody = response.errorBody()?.string() ?: response.message()
+                Result.failure(Exception("Chat failed: ${response.code()} - $errorBody"))
             }
         } catch (e: Exception) {
             Result.failure(e)
