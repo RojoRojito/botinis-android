@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,11 +10,13 @@ plugins {
 
 // Load local.properties
 val localPropertiesFile = rootProject.file("local.properties")
-val localProps = java.util.Properties()
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.inputStream().use { localProps.load(it) }
+val groqApiKey = if (localPropertiesFile.exists()) {
+    val props = Properties()
+    localPropertiesFile.inputStream().use { props.load(it) }
+    props.getProperty("GROQ_API_KEY", "")
+} else {
+    ""
 }
-val groqApiKey = localProps.getProperty("GROQ_API_KEY", "")
 
 android {
     namespace = "io.botinis.app"
