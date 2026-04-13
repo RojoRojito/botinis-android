@@ -1,5 +1,6 @@
 package io.botinis.app.domain
 
+import io.botinis.app.BuildConfig
 import io.botinis.app.data.model.ConversationTurn
 import io.botinis.app.data.model.Feedback
 import io.botinis.app.data.remote.GroqApiService

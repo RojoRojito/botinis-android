@@ -4,8 +4,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
-    id("kotlin-kapt")
 }
+
+// Load local.properties
+val localProperties = com.android.build.gradle.internal.cxx.configure.gradleLocalProperties(rootDir)
 
 android {
     namespace = "io.botinis.app"
@@ -28,7 +30,8 @@ android {
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
-            buildConfigField("String", "GROQ_API_KEY", "\"${project.findProperty("GROQ_API_KEY") ?: ""}\"")
+            buildConfigField("String", "GROQ_API_KEY",
+                "\"" + localProperties.getProperty("GROQ_API_KEY", "") + "\"")
         }
         release {
             isMinifyEnabled = true
@@ -36,7 +39,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "GROQ_API_KEY", "\"${project.findProperty("GROQ_API_KEY") ?: ""}\"")
+            buildConfigField("String", "GROQ_API_KEY",
+                "\"" + localProperties.getProperty("GROQ_API_KEY", "") + "\"")
         }
     }
 
@@ -79,7 +83,7 @@ dependencies {
 
     // Hilt DI
     implementation("com.google.dagger:hilt-android:2.51.1")
-    kapt("com.google.dagger:hilt-compiler:2.51.1")
+    ksp("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Room DB
