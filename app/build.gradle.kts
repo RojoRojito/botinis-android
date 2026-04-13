@@ -7,7 +7,12 @@ plugins {
 }
 
 // Load local.properties
-val localProperties = com.android.build.gradle.internal.cxx.configure.gradleLocalProperties(rootDir)
+val localPropertiesFile = rootProject.file("local.properties")
+val localProps = java.util.Properties()
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProps.load(it) }
+}
+val groqApiKey = localProps.getProperty("GROQ_API_KEY", "")
 
 android {
     namespace = "io.botinis.app"
@@ -31,7 +36,7 @@ android {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             buildConfigField("String", "GROQ_API_KEY",
-                "\"" + localProperties.getProperty("GROQ_API_KEY", "") + "\"")
+                "\"" + groqApiKey + "\"")
         }
         release {
             isMinifyEnabled = true
@@ -40,7 +45,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("String", "GROQ_API_KEY",
-                "\"" + localProperties.getProperty("GROQ_API_KEY", "") + "\"")
+                "\"" + groqApiKey + "\"")
         }
     }
 
