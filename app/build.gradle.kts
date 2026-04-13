@@ -95,10 +95,10 @@ dependencies {
     ksp("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    // Room DB
-    implementation("androidx.room:room-runtime:2.7.0-alpha13")
-    implementation("androidx.room:room-ktx:2.7.0-alpha13")
-    ksp("androidx.room:room-compiler:2.7.0-alpha13")
+    // Room DB - TODO: add back after build passes
+    // implementation("androidx.room:room-runtime:2.7.0-alpha13")
+    // implementation("androidx.room:room-ktx:2.7.0-alpha13")
+    // ksp("androidx.room:room-compiler:2.7.0-alpha13")
 
     // Retrofit + OkHttp
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
