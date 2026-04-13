@@ -1,11 +1,6 @@
 package io.botinis.app.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "user_progress")
 data class UserProgress(
-    @PrimaryKey val id: Int = 0,
     val totalXP: Int = 0,
     val currentLevel: String = "A2",
     val sessionsCompleted: Int = 0,
