@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.drawBehind
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -276,7 +278,8 @@ fun ConversationScreen(
                             if (turn.feedback != null && (turn.feedback.corrections.isNotEmpty() || turn.feedback.strengths.isNotEmpty())) {
                                 FeedbackBubble(turn.feedback)
                             }
-                            BotMessageBubble(turn.botResponse)
+                            // Bot response: audio first + transcript button
+                            BotAudioBubble(turn.botResponse, turn.botResponse)
                         }
                     }
                 }
@@ -335,25 +338,70 @@ fun UserMessageBubble(message: String, isPerfect: Boolean) {
 
 @Composable
 fun BotMessageBubble(message: String) {
+    // Kept for compatibility, not used anymore
+}
+
+@Composable
+fun BotAudioBubble(
+    text: String,
+    fullText: String
+) {
+    var showTranscript by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
         )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("🤖", fontSize = MaterialTheme.typography.labelSmall.fontSize)
-                Spacer(modifier = Modifier.width(4.dp))
+                Text("🔊", fontSize = 24.sp)
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Bot",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Bold
+                    text = "Escucha la respuesta",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(message, style = MaterialTheme.typography.bodyLarge)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Play button
+            OutlinedButton(
+                onClick = { /* Audio already auto-plays, this is placeholder */ },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false
+            ) {
+                Text("▶ Reproduciendo...", style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Transcript toggle
+            OutlinedButton(
+                onClick = { showTranscript = !showTranscript },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (showTranscript) {
+                    Text("📝 Ocultar transcripción")
+                } else {
+                    Text("📝 Ver transcripción")
+                }
+            }
+
+            // Transcript (hidden by default)
+            if (showTranscript) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = fullText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }

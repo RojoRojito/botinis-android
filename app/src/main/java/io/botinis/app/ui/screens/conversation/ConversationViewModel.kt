@@ -18,7 +18,7 @@ import io.botinis.app.data.remote.GroqApiService
 import io.botinis.app.data.remote.GroqChatRequest
 import io.botinis.app.data.remote.GroqMessage
 import io.botinis.app.domain.AudioPlayer
-import io.botinis.app.domain.EdgeTtsClient
+import io.botinis.app.domain.AndroidTts
 import io.botinis.app.domain.ScenarioCatalog
 import io.botinis.app.data.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +42,7 @@ class ConversationViewModel @Inject constructor(
     private val apiService: GroqApiService,
     private val audioPlayer: AudioPlayer,
     private val settingsRepository: SettingsRepository,
-    private val edgeTtsClient: EdgeTtsClient
+    private val androidTts: AndroidTts
 ) : ViewModel() {
 
     private var currentApiKey: String = ""
@@ -353,36 +353,24 @@ If no errors, return empty corrections array."""
     }
 
     private fun playBotVoice(text: String, voice: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             try {
-                val ttsFile = File(context.cacheDir, "tts_${System.currentTimeMillis()}.mp3")
-                val ttsResult = edgeTtsClient.synthesize(text, ttsFile, voice = voice)
-
-                if (ttsResult.isSuccess && ttsFile.exists() && ttsFile.length() > 0) {
-                    withContext(Dispatchers.Main) {
-                        try {
-                            mediaPlayer?.stop()
-                            mediaPlayer?.release()
-                        } catch (_: Exception) { }
-
-                        mediaPlayer = MediaPlayer().apply {
-                            setDataSource(ttsFile.absolutePath)
-                            setOnPreparedListener { start() }
-                            prepareAsync()
-                            setOnCompletionListener {
-                                _uiState.update { it.copy(isPlayingAudio = false) }
-                            }
-                            setOnErrorListener { _, _, _ ->
-                                _uiState.update { it.copy(isPlayingAudio = false) }
-                                true
-                            }
-                        }
-                    }
-                } else {
-                    _uiState.update { it.copy(isPlayingAudio = false) }
+                // Stop any ongoing speech
+                androidTts.stop()
+                _uiState.update { it.copy(isPlayingAudio = true) }
+                
+                // Speak using Android's built-in TTS
+                val result = androidTts.speak(text)
+                
+                _uiState.update { it.copy(isPlayingAudio = false) }
+                
+                if (result.isFailure) {
+                    // TTS failed but conversation still works - just log
+                    android.util.Log.w("ConversationVM", "TTS failed: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isPlayingAudio = false) }
+                android.util.Log.w("ConversationVM", "TTS exception: ${e.message}")
             }
         }
     }
@@ -465,6 +453,7 @@ If no errors, return empty corrections array."""
         mediaPlayer = null
         mediaRecorder?.release()
         mediaRecorder = null
+        androidTts.shutdown()
     }
 }
 

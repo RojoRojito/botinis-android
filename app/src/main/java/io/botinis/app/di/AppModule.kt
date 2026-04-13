@@ -9,6 +9,7 @@ import dagger.hilt.components.SingletonComponent
 import io.botinis.app.data.remote.GroqApiService
 import io.botinis.app.data.remote.RetrofitClient
 import io.botinis.app.data.repository.SettingsRepository
+import io.botinis.app.domain.AndroidTts
 import javax.inject.Singleton
 
 @Module
@@ -25,5 +26,11 @@ object AppModule {
     @Singleton
     fun provideSettingsRepository(@ApplicationContext context: Context): SettingsRepository {
         return SettingsRepository(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAndroidTts(@ApplicationContext context: Context): AndroidTts {
+        return AndroidTts(context)
     }
 }
