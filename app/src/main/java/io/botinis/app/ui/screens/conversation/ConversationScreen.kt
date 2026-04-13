@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +36,6 @@ fun ConversationScreen(
     val scenario by viewModel.scenario.collectAsState()
     val listState = rememberLazyListState()
 
-    // Request mic permission
     val micPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -44,12 +44,10 @@ fun ConversationScreen(
         }
     }
 
-    // Init scenario
     LaunchedEffect(scenarioId) {
         viewModel.initScenario(scenarioId)
     }
 
-    // Auto-scroll to bottom on new turns
     LaunchedEffect(uiState.turns.size) {
         if (uiState.turns.isNotEmpty()) {
             listState.animateScrollToItem(uiState.turns.size - 1)
@@ -59,13 +57,29 @@ fun ConversationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(scenario?.name ?: "Conversation") },
+                title = {
+                    Column {
+                        Text(scenario?.name ?: "Conversation")
+                        Text(
+                            text = scenario?.character ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
+                    // Toggle transcript visibility
+                    IconButton(onClick = { viewModel.toggleTranscriptVisibility() }) {
+                        Icon(
+                            if (uiState.showTranscript) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (uiState.showTranscript) "Hide transcript" else "Show transcript"
+                        )
+                    }
                     if (uiState.allObjectivesComplete) {
                         FilledTonalIconButton(onClick = { viewModel.endSession() }) {
                             Icon(Icons.Default.Check, contentDescription = "Complete")
@@ -79,57 +93,59 @@ fun ConversationScreen(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                val isBusy = uiState.isTranscribing || uiState.isGeneratingResponse || uiState.isPlayingAudio
-                val fabText = when {
-                    uiState.isRecording -> "Stop"
-                    uiState.isTranscribing -> "Transcribing..."
-                    uiState.isGeneratingResponse -> "Thinking..."
-                    uiState.isPlayingAudio -> "Playing..."
-                    else -> "Speak"
-                }
-
-                Button(
-                    onClick = {
-                        if (uiState.isRecording) {
-                            viewModel.stopRecording()
-                        } else {
-                            val hasPermission = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.RECORD_AUDIO
-                            ) == PackageManager.PERMISSION_GRANTED
-                            if (hasPermission) {
-                                viewModel.startRecording()
-                            } else {
-                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        }
-                    },
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = !isBusy,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (uiState.isRecording)
-                            MaterialTheme.colorScheme.error
-                        else
-                            MaterialTheme.colorScheme.primary
-                    )
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (isBusy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                    } else {
-                        Icon(
-                            if (uiState.isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                            contentDescription = null
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
+                    val isBusy = uiState.isTranscribing || uiState.isGeneratingResponse || uiState.isPlayingAudio
+                    val fabText = when {
+                        uiState.isRecording -> "⏹ Parar"
+                        uiState.isTranscribing -> "🎙 Transcribiendo..."
+                        uiState.isGeneratingResponse -> "💭 Pensando..."
+                        uiState.isPlayingAudio -> "🔊 Reproduciendo..."
+                        else -> "🎤 Hablar"
                     }
-                    Text(fabText, style = MaterialTheme.typography.titleMedium)
+
+                    Button(
+                        onClick = {
+                            if (uiState.isRecording) {
+                                viewModel.stopRecording()
+                            } else {
+                                val hasPermission = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.RECORD_AUDIO
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (hasPermission) {
+                                    viewModel.startRecording()
+                                } else {
+                                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        enabled = !isBusy || uiState.isRecording,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (uiState.isRecording)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.primary
+                        ),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        if (isBusy && !uiState.isRecording) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
+                        Text(fabText, style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
         }
@@ -140,7 +156,7 @@ fun ConversationScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // Error snackbar
+            // Error card
             uiState.error?.let { error ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -161,14 +177,14 @@ fun ConversationScreen(
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { viewModel.clearError() }) {
-                            Text("Dismiss")
+                            Text("OK")
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Scenario objectives
+            // Objectives
             if (scenario != null && uiState.objectivesCompleted.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -178,7 +194,7 @@ fun ConversationScreen(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "Objectives",
+                            text = "🎯 Objetivos",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -201,7 +217,7 @@ fun ConversationScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Session complete
@@ -217,49 +233,71 @@ fun ConversationScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "🎉 Session Complete!",
+                            text = "🎉 ¡Sesión Completa!",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("XP earned: ${uiState.xpEarned}")
-                        Text("Turns: ${uiState.totalTurns} | Perfect: ${uiState.perfectTurns}")
+                        Text("XP ganados: ${uiState.xpEarned}")
+                        Text("Turnos: ${uiState.totalTurns} | Perfectos: ${uiState.perfectTurns}")
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Conversation transcript
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (uiState.turns.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Press the mic button and start speaking in English!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+            // Transcript
+            if (uiState.showTranscript) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (uiState.turns.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Presiona el botón y empieza a hablar en inglés",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    items(uiState.turns, key = { it.id }) { turn ->
+                        Column {
+                            UserMessageBubble(turn.userTranscript, turn.isPerfect)
+                            if (turn.feedback != null && (turn.feedback.corrections.isNotEmpty() || turn.feedback.strengths.isNotEmpty())) {
+                                FeedbackBubble(turn.feedback)
+                            }
+                            BotMessageBubble(turn.botResponse)
                         }
                     }
                 }
-
-                items(uiState.turns, key = { it.id }) { turn ->
-                    Column {
-                        UserMessageBubble(turn.userTranscript, turn.isPerfect)
-                        if (turn.feedback != null && (turn.feedback.corrections.isNotEmpty() || turn.feedback.strengths.isNotEmpty())) {
-                            FeedbackBubble(turn.feedback)
-                        }
-                        BotMessageBubble(turn.botResponse)
+            } else {
+                // Placeholder when transcript is hidden
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "👁",
+                            style = MaterialTheme.typography.displayLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Transcripción oculta\nToca el ojo para verla",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -281,24 +319,16 @@ fun UserMessageBubble(message: String, isPerfect: Boolean) {
         Column(modifier = Modifier.padding(12.dp)) {
             if (isPerfect) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Star,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Text("⭐", fontSize = MaterialTheme.typography.labelSmall.fontSize)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Perfect turn!",
+                        text = "¡Perfecto!",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             }
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Text(message, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
@@ -313,24 +343,17 @@ fun BotMessageBubble(message: String) {
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(16.dp)
-                )
+                Text("🤖", fontSize = MaterialTheme.typography.labelSmall.fontSize)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "Bot",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Text(message, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
@@ -345,7 +368,7 @@ fun FeedbackBubble(feedback: io.botinis.app.data.model.Feedback) {
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = "📝 Grammar Feedback",
+                text = "📝 Feedback",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -353,24 +376,12 @@ fun FeedbackBubble(feedback: io.botinis.app.data.model.Feedback) {
 
             if (feedback.corrections.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                feedback.corrections.forEach { correction ->
+                feedback.corrections.forEach { c ->
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        Text(
-                            text = "❌ \"${correction.original}\"",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = "✅ \"${correction.corrected}\"",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                        if (correction.explanation.isNotEmpty()) {
-                            Text(
-                                text = "💡 ${correction.explanation}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                        Text("❌ \"${c.original}\"", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        Text("✅ \"${c.corrected}\"", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                        if (c.explanation.isNotEmpty()) {
+                            Text("💡 ${c.explanation}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
                         }
                     }
                 }
@@ -378,12 +389,8 @@ fun FeedbackBubble(feedback: io.botinis.app.data.model.Feedback) {
 
             if (feedback.strengths.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                feedback.strengths.forEach { strength ->
-                    Text(
-                        text = "👍 $strength",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
+                feedback.strengths.forEach { s ->
+                    Text("👍 $s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
                 }
             }
         }

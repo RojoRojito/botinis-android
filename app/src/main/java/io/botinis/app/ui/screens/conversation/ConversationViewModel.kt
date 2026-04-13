@@ -18,6 +18,7 @@ import io.botinis.app.data.remote.GroqApiService
 import io.botinis.app.data.remote.GroqChatRequest
 import io.botinis.app.data.remote.GroqMessage
 import io.botinis.app.domain.AudioPlayer
+import io.botinis.app.domain.EdgeTtsClient
 import io.botinis.app.domain.ScenarioCatalog
 import io.botinis.app.data.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,6 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 
 @HiltViewModel
@@ -41,7 +41,8 @@ class ConversationViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val apiService: GroqApiService,
     private val audioPlayer: AudioPlayer,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val edgeTtsClient: EdgeTtsClient
 ) : ViewModel() {
 
     private var currentApiKey: String = ""
@@ -354,12 +355,10 @@ If no errors, return empty corrections array."""
     private fun playBotVoice(text: String, voice: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Use edge-tts via subprocess or a simple text-to-speech fallback
-                // For now, using Android's built-in TTS as placeholder
-                // TODO: Replace with Edge TTS API call
-                val ttsFile = File(context.cacheDir, "tts_${System.currentTimeMillis()}.ogg")
-                val ttsResult = generateTtsAudio(text, ttsFile)
-                if (ttsResult.isSuccess && ttsFile.exists()) {
+                val ttsFile = File(context.cacheDir, "tts_${System.currentTimeMillis()}.mp3")
+                val ttsResult = edgeTtsClient.synthesize(text, ttsFile, voice = voice)
+
+                if (ttsResult.isSuccess && ttsFile.exists() && ttsFile.length() > 0) {
                     withContext(Dispatchers.Main) {
                         try {
                             mediaPlayer?.stop()
@@ -368,10 +367,14 @@ If no errors, return empty corrections array."""
 
                         mediaPlayer = MediaPlayer().apply {
                             setDataSource(ttsFile.absolutePath)
-                            prepare()
-                            start()
+                            setOnPreparedListener { start() }
+                            prepareAsync()
                             setOnCompletionListener {
                                 _uiState.update { it.copy(isPlayingAudio = false) }
+                            }
+                            setOnErrorListener { _, _, _ ->
+                                _uiState.update { it.copy(isPlayingAudio = false) }
+                                true
                             }
                         }
                     }
@@ -384,19 +387,8 @@ If no errors, return empty corrections array."""
         }
     }
 
-    private fun generateTtsAudio(text: String, outputFile: File): Result<Unit> {
-        return try {
-            // Simple placeholder: save text as file
-            // TODO: Replace with actual Edge TTS API call
-            FileOutputStream(outputFile).use { fos ->
-                fos.write(text.toByteArray())
-            }
-            // For now, just return success so the flow works
-            // The actual TTS will be implemented separately
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    fun toggleTranscriptVisibility() {
+        _uiState.update { it.copy(showTranscript = !it.showTranscript) }
     }
 
     private fun parseFeedback(content: String): Feedback {
@@ -482,6 +474,7 @@ data class ConversationUiState(
     val isTranscribing: Boolean = false,
     val isGeneratingResponse: Boolean = false,
     val isPlayingAudio: Boolean = false,
+    val showTranscript: Boolean = true,
     val turns: List<ConversationTurn> = emptyList(),
     val objectivesCompleted: List<Boolean> = emptyList(),
     val allObjectivesComplete: Boolean = false,
