@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.botinis.app.data.local.BotinisDatabase
 import io.botinis.app.data.local.dao.SessionDao
+import io.botinis.app.data.local.dao.UserProgressDao
 import io.botinis.app.data.remote.GroqApiService
 import io.botinis.app.data.remote.RetrofitClient
 import javax.inject.Singleton
@@ -32,6 +33,10 @@ object AppModule {
             "botinis_database"
         ).build()
     }
+
+    @Provides
+    @Singleton
+    fun provideUserProgressDao(db: BotinisDatabase): UserProgressDao = db.userProgressDao()
 
     @Provides
     @Singleton
