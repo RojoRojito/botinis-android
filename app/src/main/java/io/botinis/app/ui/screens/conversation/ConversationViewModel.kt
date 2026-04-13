@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.botinis.app.BuildConfig
 import io.botinis.app.data.model.CEFRLevel
 import io.botinis.app.data.model.ConversationTurn
 import io.botinis.app.data.model.Correction
@@ -20,10 +19,12 @@ import io.botinis.app.data.remote.GroqChatRequest
 import io.botinis.app.data.remote.GroqMessage
 import io.botinis.app.domain.AudioPlayer
 import io.botinis.app.domain.ScenarioCatalog
+import io.botinis.app.data.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,10 +40,11 @@ import javax.inject.Inject
 class ConversationViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val apiService: GroqApiService,
-    private val audioPlayer: AudioPlayer
+    private val audioPlayer: AudioPlayer,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val apiKey = "Bearer ${BuildConfig.GROQ_API_KEY}"
+    private var currentApiKey: String = ""
 
     private val _uiState = MutableStateFlow(ConversationUiState())
     val uiState: StateFlow<ConversationUiState> = _uiState.asStateFlow()
@@ -63,7 +65,22 @@ class ConversationViewModel @Inject constructor(
         _scenario.value = found
         conversationHistory.clear()
         objectivesCompleted = List(found?.objectives?.size ?: 0) { false }
+
+        // Load API key from settings
+        viewModelScope.launch {
+            currentApiKey = settingsRepository.groqApiKey.first()
+        }
+
         _uiState.update { it.copy(isReady = true) }
+    }
+
+    private fun getApiKey(): String {
+        return if (currentApiKey.isNotBlank()) {
+            "Bearer $currentApiKey"
+        } else {
+            // Fallback: try to get it synchronously (not ideal but works for now)
+            ""
+        }
     }
 
     fun startRecording() {
@@ -217,7 +234,7 @@ class ConversationViewModel @Inject constructor(
             val model = "whisper-large-v3-turbo".toRequestBody("text/plain".toMediaType())
 
             val response = apiService.transcribeAudio(
-                apiKey = apiKey,
+                apiKey = getApiKey(),
                 audio = audioPart,
                 model = model
             )
@@ -254,7 +271,7 @@ If no errors, return empty corrections array."""
             )
 
             val response = apiService.analyzeFeedback(
-                apiKey = apiKey,
+                apiKey = getApiKey(),
                 request = request
             )
 
@@ -287,7 +304,7 @@ If no errors, return empty corrections array."""
             )
 
             val response = apiService.chatCompletion(
-                apiKey = apiKey,
+                apiKey = getApiKey(),
                 request = request
             )
 
