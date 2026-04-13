@@ -79,55 +79,57 @@ fun ConversationScreen(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Row(
+                val isBusy = uiState.isTranscribing || uiState.isGeneratingResponse || uiState.isPlayingAudio
+                val fabText = when {
+                    uiState.isRecording -> "Stop"
+                    uiState.isTranscribing -> "Transcribing..."
+                    uiState.isGeneratingResponse -> "Thinking..."
+                    uiState.isPlayingAudio -> "Playing..."
+                    else -> "Speak"
+                }
+
+                Button(
+                    onClick = {
+                        if (uiState.isRecording) {
+                            viewModel.stopRecording()
+                        } else {
+                            val hasPermission = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (hasPermission) {
+                                viewModel.startRecording()
+                            } else {
+                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ExtendedFloatingActionButton(
-                        onClick = {
-                            if (uiState.isRecording) {
-                                viewModel.stopRecording()
-                            } else {
-                                val hasPermission = ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.RECORD_AUDIO
-                                ) == PackageManager.PERMISSION_GRANTED
-                                if (hasPermission) {
-                                    viewModel.startRecording()
-                                } else {
-                                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            }
-                        },
-                        icon = {
-                            if (uiState.isTranscribing || uiState.isGeneratingResponse || uiState.isPlayingAudio) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    if (uiState.isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                                    contentDescription = if (uiState.isRecording) "Stop" else "Record"
-                                )
-                            }
-                        },
-                        text = {
-                            Text(
-                                when {
-                                    uiState.isRecording -> "Stop"
-                                    uiState.isTranscribing -> "Transcribing..."
-                                    uiState.isGeneratingResponse -> "Thinking..."
-                                    uiState.isPlayingAudio -> "Playing..."
-                                    else -> "Speak"
-                                }
-                            )
-                        },
-                        enabled = !uiState.isTranscribing && !uiState.isGeneratingResponse && !uiState.isPlayingAudio
+                        .height(56.dp),
+                    enabled = !isBusy,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (uiState.isRecording)
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.primary
                     )
+                ) {
+                    if (isBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                    } else {
+                        Icon(
+                            if (uiState.isRecording) Icons.Default.Stop else Icons.Default.Mic,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                    }
+                    Text(fabText, style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
