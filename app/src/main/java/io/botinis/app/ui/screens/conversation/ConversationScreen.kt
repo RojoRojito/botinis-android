@@ -331,11 +331,7 @@ fun BotAudioBubble(
 
             OutlinedButton(
                 onClick = { showTranscript = !showTranscript },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedButtonDefaults.colors(
-                    borderColor = AccentPrimary,
-                    contentColor = AccentPrimary
-                )
+                modifier = Modifier.fillMaxWidth()
             ) {
                 if (showTranscript) {
                     Text("📝 Ocultar transcripción")
