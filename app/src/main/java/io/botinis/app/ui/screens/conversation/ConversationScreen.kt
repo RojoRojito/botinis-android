@@ -22,8 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.draw.drawBehind
 import androidx.core.content.ContextCompat
+import io.botinis.app.ui.theme.*
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun ConversationScreen(
     scenarioId: String,
     onBack: () -> Unit,
+    onComplete: () -> Unit,
     viewModel: ConversationViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -65,7 +66,7 @@ fun ConversationScreen(
                         Text(
                             text = scenario?.character ?: "",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextSecondary
                         )
                     }
                 },
@@ -75,25 +76,26 @@ fun ConversationScreen(
                     }
                 },
                 actions = {
-                    // Toggle transcript visibility
                     IconButton(onClick = { viewModel.toggleTranscriptVisibility() }) {
                         Icon(
                             if (uiState.showTranscript) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = if (uiState.showTranscript) "Hide transcript" else "Show transcript"
+                            contentDescription = null
                         )
                     }
                     if (uiState.allObjectivesComplete) {
-                        FilledTonalIconButton(onClick = { viewModel.endSession() }) {
+                        FilledTonalIconButton(onClick = { onComplete() }) {
                             Icon(Icons.Default.Check, contentDescription = "Complete")
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundPrimary)
             )
         },
         bottomBar = {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = BackgroundSecondary)
             ) {
                 Column(
                     modifier = Modifier
@@ -155,6 +157,7 @@ fun ConversationScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BackgroundPrimary)
                 .padding(padding)
                 .padding(16.dp)
         ) {
@@ -162,25 +165,15 @@ fun ConversationScreen(
             uiState.error?.let { error ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                    colors = CardDefaults.cardColors(containerColor = Error.copy(alpha = 0.15f))
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = { viewModel.clearError() }) {
-                            Text("OK")
-                        }
+                        Text(text = error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f), color = TextPrimary)
+                        TextButton(onClick = { viewModel.clearError() }) { Text("OK", color = TextPrimary) }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -190,31 +183,15 @@ fun ConversationScreen(
             if (scenario != null && uiState.objectivesCompleted.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    )
+                    colors = CardDefaults.cardColors(containerColor = AccentPrimary.copy(alpha = 0.1f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "🎯 Objetivos",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(text = "🎯 Objetivos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                         Spacer(modifier = Modifier.height(4.dp))
                         scenario!!.objectives.forEachIndexed { index, objective ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = uiState.objectivesCompleted.getOrNull(index) == true,
-                                    onCheckedChange = null
-                                )
-                                Text(
-                                    text = objective,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(start = 4.dp)
-                                )
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = uiState.objectivesCompleted.getOrNull(index) == true, onCheckedChange = null)
+                                Text(text = objective, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp), color = TextSecondary)
                             }
                         }
                     }
@@ -226,22 +203,13 @@ fun ConversationScreen(
             if (uiState.isSessionComplete) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    )
+                    colors = CardDefaults.cardColors(containerColor = AccentSecondary.copy(alpha = 0.15f))
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "🎉 ¡Sesión Completa!",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "🎉 ¡Sesión Completa!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("XP ganados: ${uiState.xpEarned}")
-                        Text("Turnos: ${uiState.totalTurns} | Perfectos: ${uiState.perfectTurns}")
+                        Text("XP ganados: ${uiState.xpEarned}", color = TextSecondary)
+                        Text("Turnos: ${uiState.totalTurns} | Perfectos: ${uiState.perfectTurns}", color = TextSecondary)
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -257,16 +225,14 @@ fun ConversationScreen(
                     if (uiState.turns.isEmpty()) {
                         item {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
+                                modifier = Modifier.fillMaxWidth().padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Presiona el botón y empieza a hablar en inglés",
                                     style = MaterialTheme.typography.bodyMedium,
                                     textAlign = TextAlign.Center,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = TextSecondary
                                 )
                             }
                         }
@@ -290,16 +256,13 @@ fun ConversationScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "👁",
-                            style = MaterialTheme.typography.displayLarge
-                        )
+                        Text(text = "🐾", style = MaterialTheme.typography.displayLarge)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Transcripción oculta\nToca el ojo para verla",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextSecondary
                         )
                     }
                 }
@@ -350,9 +313,7 @@ fun BotAudioBubble(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-        )
+        colors = CardDefaults.cardColors(containerColor = AccentPrimary.copy(alpha = 0.15f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -362,27 +323,19 @@ fun BotAudioBubble(
                     text = "Escucha la respuesta",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = TextPrimary
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Play button
-            OutlinedButton(
-                onClick = { /* Audio already auto-plays, this is placeholder */ },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = false
-            ) {
-                Text("▶ Reproduciendo...", style = MaterialTheme.typography.bodyMedium)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Transcript toggle
             OutlinedButton(
                 onClick = { showTranscript = !showTranscript },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedButtonDefaults.colors(
+                    borderColor = AccentPrimary,
+                    contentColor = AccentPrimary
+                )
             ) {
                 if (showTranscript) {
                     Text("📝 Ocultar transcripción")
@@ -391,15 +344,14 @@ fun BotAudioBubble(
                 }
             }
 
-            // Transcript (hidden by default)
             if (showTranscript) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Divider()
+                Divider(color = TextDisabled)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = fullText,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = TextPrimary
                 )
             }
         }

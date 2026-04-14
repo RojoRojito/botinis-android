@@ -18,20 +18,21 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val apiKey by viewModel.apiKey.collectAsState()
-    val isSaved by viewModel.isSaved.collectAsState()
     val isConfigured by viewModel.isConfigured.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text("Configuración") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = io.botinis.app.ui.theme.BackgroundPrimary)
             )
-        }
+        },
+        containerColor = io.botinis.app.ui.theme.BackgroundPrimary
     ) { padding ->
         Column(
             modifier = Modifier
@@ -39,11 +40,11 @@ fun SettingsScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // API Key section
             Text(
                 text = "API Configuration",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = io.botinis.app.ui.theme.TextPrimary
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -53,104 +54,41 @@ fun SettingsScreen(
                 label = { Text("Groq API Key") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                visualTransformation = if (apiKey.isNotBlank() && apiKey.length > 8) {
-                    androidx.compose.ui.text.input.VisualTransformation.None
-                } else {
-                    androidx.compose.ui.text.input.VisualTransformation.None
-                },
-                placeholder = { Text("gsk_...") }
+                placeholder = { Text("gsk_...") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = io.botinis.app.ui.theme.AccentPrimary,
+                    unfocusedBorderColor = io.botinis.app.ui.theme.TextDisabled
+                )
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             if (isConfigured) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = io.botinis.app.ui.theme.Success)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "API Key configured",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
+                    Text("API Key configured", color = io.botinis.app.ui.theme.Success, style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = io.botinis.app.ui.theme.Error)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "API Key required to use the app",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-
-            if (isSaved) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "✓ Saved!",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.tertiary
-                )
-                LaunchedEffect(Unit) {
-                    viewModel.clearSavedState()
+                    Text("API Key required", color = io.botinis.app.ui.theme.Error, style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // App info
-            Text(
-                text = "App Information",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Botinis v1.0.0",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Powered by Groq API (Whisper + Llama 3.1)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Help text
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                )
+                colors = CardDefaults.cardColors(containerColor = io.botinis.app.ui.theme.AccentPrimary.copy(alpha = 0.1f))
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "ℹ️ How to get your API key",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("ℹ️ How to get your API key", fontWeight = FontWeight.Bold, color = io.botinis.app.ui.theme.TextPrimary)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "1. Go to console.groq.com/keys\n2. Create an account or log in\n3. Generate a new API key\n4. Paste it here",
-                        style = MaterialTheme.typography.bodySmall
+                        "1. Go to console.groq.com/keys\n2. Create an account or log in\n3. Generate a new API key\n4. Paste it here",
+                        color = io.botinis.app.ui.theme.TextSecondary
                     )
                 }
             }
