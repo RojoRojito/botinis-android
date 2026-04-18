@@ -355,20 +355,19 @@ If no errors, return empty corrections array."""
     private fun playBotVoice(text: String, voice: String) {
         viewModelScope.launch {
             try {
-                androidTts.stop()
+                Log.d("ConversationVM", "playBotVoice: setting isPlayingAudio=true")
                 _uiState.update { it.copy(isPlayingAudio = true) }
 
-                // Fire-and-forget: TTS plays in background, UI updates immediately
-                // so text is visible while audio plays
                 androidTts.speakAsync(text) { success ->
+                    Log.d("ConversationVM", "playBotVoice: callback received, success=$success")
                     _uiState.update { it.copy(isPlayingAudio = false) }
                     if (!success) {
-                        android.util.Log.w("ConversationVM", "TTS failed")
+                        Log.w("ConversationVM", "TTS playback failed")
                     }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isPlayingAudio = false) }
-                android.util.Log.w("ConversationVM", "TTS exception: ${e.message}")
+                Log.w("ConversationVM", "TTS exception: ${e.message}")
             }
         }
     }
