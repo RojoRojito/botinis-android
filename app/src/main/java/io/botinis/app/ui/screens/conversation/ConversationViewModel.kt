@@ -355,18 +355,16 @@ If no errors, return empty corrections array."""
     private fun playBotVoice(text: String, voice: String) {
         viewModelScope.launch {
             try {
-                // Stop any ongoing speech
                 androidTts.stop()
                 _uiState.update { it.copy(isPlayingAudio = true) }
-                
-                // Speak using Android's built-in TTS
-                val result = androidTts.speak(text)
-                
-                _uiState.update { it.copy(isPlayingAudio = false) }
-                
-                if (result.isFailure) {
-                    // TTS failed but conversation still works - just log
-                    android.util.Log.w("ConversationVM", "TTS failed: ${result.exceptionOrNull()?.message}")
+
+                // Fire-and-forget: TTS plays in background, UI updates immediately
+                // so text is visible while audio plays
+                androidTts.speakAsync(text) { success ->
+                    _uiState.update { it.copy(isPlayingAudio = false) }
+                    if (!success) {
+                        android.util.Log.w("ConversationVM", "TTS failed")
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isPlayingAudio = false) }
@@ -374,6 +372,48 @@ If no errors, return empty corrections array."""
             }
         }
     }
+
+    fun translateText(text: String, turnId: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val messages = listOf(
+                    GroqMessage("system", "Translate the following English text to Spanish. Return only the translation, nothing else."),
+                    GroqMessage("user", "Translate: $text")
+                )
+                val request = GroqChatRequest(
+                    model = "llama-3.1-8b-instant",
+                    messages = messages,
+                    temperature = 0.3f,
+                    max_tokens = 300
+                )
+                val response = apiService.chatCompletion(
+                    apiKey = getApiKey(),
+                    request = request
+                )
+                if (response.isSuccessful && response.body()?.choices?.isNotEmpty() == true) {
+                    val translation = response.body()!!.choices[0].message.content.trim()
+                    _uiState.update { it.copy(translations = it.translations + (turnId to translation)) }
+                    onResult(translation)
+                } else {
+                    onResult("Error: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                onResult("Error: ${e.message}")
+            }
+        }
+    }
+
+    fun toggleTranslation(turnId: String) {
+        // Remove translation to hide, or keep to show
+        _uiState.update {
+            val newTranslations = it.translations - turnId
+            it.copy(translations = newTranslations)
+        }
+    }
+
+    fun hasTranslation(turnId: String): Boolean = _uiState.value.translations.containsKey(turnId)
+
+    fun getTranslation(turnId: String): String? = _uiState.value.translations[turnId]
 
     fun toggleTranscriptVisibility() {
         _uiState.update { it.copy(showTranscript = !it.showTranscript) }
@@ -471,7 +511,8 @@ data class ConversationUiState(
     val isSessionComplete: Boolean = false,
     val xpEarned: Int = 0,
     val totalTurns: Int = 0,
-    val perfectTurns: Int = 0
+    val perfectTurns: Int = 0,
+    val translations: Map<String, String> = emptyMap()
 )
 
 // DTO for parsing LLM feedback

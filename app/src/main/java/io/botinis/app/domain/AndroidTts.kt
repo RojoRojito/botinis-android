@@ -59,6 +59,46 @@ class AndroidTts @Inject constructor(
         }
     }
 
+    fun speakAsync(text: String, callback: (Boolean) -> Unit) {
+        if (!isInitialized) {
+            // Initialize synchronously (best effort)
+            tts = TextToSpeech(context) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    tts?.language = Locale.US
+                    tts?.setSpeechRate(1.0f)
+                    tts?.setPitch(1.0f)
+                    isInitialized = true
+                    doSpeak(text, callback)
+                } else {
+                    callback(false)
+                }
+            }
+        } else {
+            doSpeak(text, callback)
+        }
+    }
+
+    private fun doSpeak(text: String, callback: (Boolean) -> Unit) {
+        val utteranceId = "utterance_${System.currentTimeMillis()}"
+
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+
+            override fun onDone(utteranceId: String?) {
+                callback(true)
+            }
+
+            override fun onError(utteranceId: String?) {
+                callback(false)
+            }
+        })
+
+        val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        if (result != TextToSpeech.SUCCESS) {
+            callback(false)
+        }
+    }
+
     fun stop() {
         tts?.stop()
     }

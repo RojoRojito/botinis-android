@@ -244,8 +244,7 @@ fun ConversationScreen(
                             if (turn.feedback != null && (turn.feedback.corrections.isNotEmpty() || turn.feedback.strengths.isNotEmpty())) {
                                 FeedbackBubble(turn.feedback)
                             }
-                            // Bot response: audio first + transcript button
-                            BotAudioBubble(turn.botResponse, turn.botResponse)
+                            BotAudioBubble(turn.id, turn.botResponse, turn.botResponse, viewModel)
                         }
                     }
                 }
@@ -306,10 +305,14 @@ fun BotMessageBubble(message: String) {
 
 @Composable
 fun BotAudioBubble(
+    turnId: String,
     text: String,
-    fullText: String
+    fullText: String,
+    viewModel: ConversationViewModel
 ) {
-    var showTranscript by remember { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsState()
+    val hasTranslation = uiState.translations.containsKey(turnId)
+    val translation = uiState.translations[turnId]
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -320,7 +323,7 @@ fun BotAudioBubble(
                 Text("🔊", fontSize = 24.sp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Escucha la respuesta",
+                    text = "Bot response",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
@@ -329,25 +332,35 @@ fun BotAudioBubble(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            Text(
+                text = fullText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextPrimary
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             OutlinedButton(
-                onClick = { showTranscript = !showTranscript },
+                onClick = {
+                    if (hasTranslation) {
+                        viewModel.toggleTranslation(turnId)
+                    } else {
+                        viewModel.translateText(fullText, turnId) {}
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (showTranscript) {
-                    Text("📝 Ocultar transcripción")
-                } else {
-                    Text("📝 Ver transcripción")
-                }
+                Text(if (hasTranslation) "Hide translation" else "Translate")
             }
 
-            if (showTranscript) {
+            if (hasTranslation && translation != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Divider(color = TextDisabled)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = fullText,
+                    text = translation,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary
+                    color = TextSecondary
                 )
             }
         }
