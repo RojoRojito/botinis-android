@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
