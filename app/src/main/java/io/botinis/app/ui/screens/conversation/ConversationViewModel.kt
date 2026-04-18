@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -54,6 +56,7 @@ class ConversationViewModel @Inject constructor(
     private val _scenario = MutableStateFlow<Scenario?>(null)
     val scenario: StateFlow<Scenario?> = _scenario
 
+    private val historyMutex = Mutex()
     private var conversationHistory = mutableListOf<ConversationTurn>()
     private var mediaRecorder: MediaRecorder? = null
     private var tempAudioFile: File? = null
@@ -61,19 +64,23 @@ class ConversationViewModel @Inject constructor(
     private var objectivesCompleted = listOf(false, false, false)
 
     private val gson = Gson()
+    private val translationCache = mutableMapOf<String, String>()
 
     fun initScenario(scenarioId: String) {
         val found = ScenarioCatalog.getScenarioById(scenarioId)
         _scenario.value = found
         conversationHistory.clear()
         objectivesCompleted = List(found?.objectives?.size ?: 0) { false }
+        translationCache.clear()
 
-        // Load API key from settings
         viewModelScope.launch {
             currentApiKey = settingsRepository.groqApiKey.first()
+            Log.d("ConversationVM", "API key loaded: ${if (currentApiKey.isNotBlank()) "yes" else "no"}")
+            _uiState.update { it.copy(isReady = currentApiKey.isNotBlank()) }
+            if (currentApiKey.isBlank()) {
+                _uiState.update { it.copy(error = "API key not configured. Go to Settings to set it.") }
+            }
         }
-
-        _uiState.update { it.copy(isReady = true) }
     }
 
     private fun getApiKey(): String {
@@ -212,7 +219,7 @@ class ConversationViewModel @Inject constructor(
         val updatedObjectives = checkObjectives(scenario, userText)
         objectivesCompleted = updatedObjectives
 
-        // Step 5: Build turn and add to history
+        // Step 5: Build turn and add to history (thread-safe)
         val isPerfect = feedback?.corrections.isNullOrEmpty()
         val turn = ConversationTurn(
             userTranscript = userText,
@@ -220,16 +227,19 @@ class ConversationViewModel @Inject constructor(
             botResponse = botResponse,
             isPerfect = isPerfect
         )
-        conversationHistory.add(turn)
+        historyMutex.withLock {
+            conversationHistory.add(turn)
+        }
 
         // Step 6: Generate TTS for bot response
         _uiState.update { it.copy(isGeneratingResponse = false, isPlayingAudio = true) }
         playBotVoice(botResponse, scenario.voice)
 
         // Step 7: Update UI state
+        val turnsSnapshot = historyMutex.withLock { conversationHistory.toList() }
         _uiState.update {
             it.copy(
-                turns = conversationHistory.toList(),
+                turns = turnsSnapshot,
                 isPlayingAudio = false,
                 objectivesCompleted = objectivesCompleted,
                 allObjectivesComplete = objectivesCompleted.all { it }
@@ -375,6 +385,14 @@ If no errors, return empty corrections array."""
 
     fun translateText(text: String, turnId: String, onResult: (String) -> Unit) {
         viewModelScope.launch {
+            // Check cache first
+            val cached = translationCache[turnId]
+            if (cached != null) {
+                _uiState.update { it.copy(translations = it.translations + (turnId to cached)) }
+                onResult(cached)
+                return@launch
+            }
+
             try {
                 val messages = listOf(
                     GroqMessage("system", "Translate the following English text to Spanish. Return only the translation, nothing else."),
@@ -392,6 +410,7 @@ If no errors, return empty corrections array."""
                 )
                 if (response.isSuccessful && response.body()?.choices?.isNotEmpty() == true) {
                     val translation = response.body()!!.choices[0].message.content.trim()
+                    translationCache[turnId] = translation  // Cache for later
                     _uiState.update { it.copy(translations = it.translations + (turnId to translation)) }
                     onResult(translation)
                 } else {
@@ -404,9 +423,18 @@ If no errors, return empty corrections array."""
     }
 
     fun toggleTranslation(turnId: String) {
-        // Remove translation to hide, or keep to show
+        // Toggle visibility without deleting from cache
         _uiState.update {
-            val newTranslations = it.translations - turnId
+            val newTranslations = if (it.translations.containsKey(turnId)) {
+                it.translations - turnId  // Hide
+            } else {
+                val cached = translationCache[turnId]
+                if (cached != null) {
+                    it.translations + (turnId to cached)  // Show from cache
+                } else {
+                    it.translations
+                }
+            }
             it.copy(translations = newTranslations)
         }
     }

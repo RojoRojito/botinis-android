@@ -16,7 +16,9 @@ import io.botinis.app.ui.navigation.AppNavigation
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            enableEdgeToEdge()
+        }
         setContent {
             BotinisTheme {
                 Surface(

@@ -112,8 +112,8 @@ class AndroidTts @Inject constructor(
     fun speakAsync(text: String, callback: (Boolean) -> Unit) {
         Log.d(TAG, "speakAsync() called with text length: ${text.length}")
 
-        if (!isInitialized) {
-            Log.d(TAG, "TTS not initialized, initializing synchronously")
+        if (!isInitialized || tts == null) {
+            Log.d(TAG, "TTS not initialized or null, initializing synchronously")
             tts = TextToSpeech(context) { status ->
                 if (status == TextToSpeech.SUCCESS) {
                     Log.d(TAG, "TTS initialized in speakAsync")

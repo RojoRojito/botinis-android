@@ -244,7 +244,7 @@ fun ConversationScreen(
                             if (turn.feedback != null && (turn.feedback.corrections.isNotEmpty() || turn.feedback.strengths.isNotEmpty())) {
                                 FeedbackBubble(turn.feedback)
                             }
-                            BotAudioBubble(turn.id, turn.botResponse, turn.botResponse, viewModel)
+                            BotAudioBubble(turn.id, turn.botResponse, viewModel)
                         }
                     }
                 }
@@ -306,7 +306,6 @@ fun BotMessageBubble(message: String) {
 @Composable
 fun BotAudioBubble(
     turnId: String,
-    text: String,
     fullText: String,
     viewModel: ConversationViewModel
 ) {
